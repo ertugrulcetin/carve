@@ -15,12 +15,12 @@
 (s/def ::api-namespaces (s/coll-of symbol?))
 (s/def ::carve-ignore-file string?)
 (s/def ::interactive boolean?)
-(s/def ::interactive? boolean?) ;; deprecated
+(s/def ::interactive? boolean?)                             ;; deprecated
 (s/def ::dry-run boolean?)
-(s/def ::dry-run? boolean?) ;; deprecated
+(s/def ::dry-run? boolean?)                                 ;; deprecated
 (s/def ::format #{:edn :text})
 (s/def ::aggressive boolean?)
-(s/def ::aggressive? boolean?) ;; deprecated
+(s/def ::aggressive? boolean?)                              ;; deprecated
 (s/def ::out-dir string?)
 (s/def ::report-format (s/keys :req-un [::format]))
 (s/def ::report (s/or :bool boolean? :map ::report-format))
@@ -49,26 +49,22 @@
   [{:keys [paths] :as opts}]
   (s/assert ::opts opts)
   (when-not (every? valid-path? paths)
-    (throw (ex-info "Path not found" {:paths paths}))))
-
-(defn- load-opts
-  [opts]
-  (let [opts (if (valid-path? opts) (slurp opts) opts)
-        opts (edn/read-string opts)]
-    (validate-opts! opts)
-    opts))
+    (throw (ex-info "Path not found" {:paths paths})))
+  opts)
 
 (defn main
-  [& [flag opts & _args]]
-  (when-not (= "--opts" flag)
-    (throw (ex-info (str "Unrecognized option: " flag) {:flag flag})))
-  (let [opts (load-opts opts)
+  [opts]
+  (let [start  (. System (nanoTime))
+        opts   (validate-opts! opts)
         format (-> opts :report :format)
-        report (impl/run! opts)]
+        report (impl/run! opts)
+        took   (long (/ (double (- (. System (nanoTime)) start)) 1000000.0))]
     (when format
       (impl/print-report report format))
+    (when (seq report)
+      (println "Took:" took "msecs" "-" (count report) "unused vars found."))
     (if (empty? report) 0 1)))
 
-(defn -main
-  [& options]
-  (System/exit (apply main options)))
+(defn carve
+  [options]
+  (System/exit (main options)))
